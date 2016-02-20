@@ -1,0 +1,178 @@
+#include <boost/regex.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+#include <fstream>
+#include <sstream>
+#include <libxml++/libxml++.h>
+
+#include "libsedna.h"
+#include "diff/xmldiff.h"
+
+#include "xqtsabstracts.h"
+
+using std::string;
+
+/**********************************************
+ * IInput implentations
+ **********************************************/
+
+FileSource::FileSource(const string &_fileName, const string &_variableName) 
+    : IInput(principal), fileName(_fileName), variableName(_variableName)
+{
+}
+
+void FileSource::apply(sedna::Query& query)
+{
+    /* Here we should analyze query body and substitute input document 
+     * instead of variable occurences */
+    
+    /* Constructing regex to remove variable declarations */
+    const boost::regex removeDeclExp("(declare)[[:space:]]*(variable)[[:space:]]*\\$[[:print:]]*[[:space:]]*(external);");
+    const string replaceStr1 = "";
+    
+    /* Constructing regex to replace occurances */
+    const boost::regex renameVarExp("\\$" + variableName);
+    const string replaceStr2 = fileName;    
+    
+    /* Applying expressions */
+    
+    query.body = boost::regex_replace(query.body, removeDeclExp, replaceStr1);
+    query.body = boost::regex_replace(query.body, renameVarExp, replaceStr2);
+}
+
+/**********************************************
+ * IOutput implementations
+ **********************************************/
+
+XmlOutput::XmlOutput(const string &_fileName)
+    : IOutput(principal), fileName(_fileName)
+{
+}
+
+bool XmlOutput::check(sedna::Query &query)
+{
+    /* Here, we concatenating all result sequence elements and 
+     * comparing them with correct XML */
+    
+    if (query.resultCode != SEDNA_QUERY_SUCCEEDED) {
+        //Query exited with error or it was bulk load or update (incorrect test case)
+        return false;
+    }
+    
+    std::string fullResult;
+    for (int i = 0; i < query.resultSequence.size(); i++) {
+        fullResult += query.resultSequence[i];
+    }
+    
+    std::ifstream correctAnswer(fileName);
+    std::istringstream result(fullResult);
+    
+    XmlDiff xmlDiff(correctAnswer, result);
+    return !xmlDiff.diff();
+}
+
+TextOutput::TextOutput(const string &_fileName)
+    : IOutput(principal), fileName(_fileName)
+{
+}
+
+bool TextOutput::check(sedna::Query &query)
+{
+    /* Wrapping text and result in XML Containers and compare them as xml */
+    
+    if (query.resultCode != SEDNA_QUERY_SUCCEEDED) {
+        //Query exited with error or it was bulk load or update (incorrect test case)
+        return false;
+    }
+
+    string answerString;
+    boost::filesystem::path answerFile(filename);
+    answerString.resize(boost::filesystem::file_size(fileName));
+    boost::filesystem::ifstream answerFileStream(queryFile);
+    answerFileStream.read(&answerString[0], answerString.size());
+    
+    xmlpp::Document answerDoc();
+    xmlpp::Element *answerRoot = answerDoc.create_root_node("TextOutput");
+    answerRoot->add_child_text(answerString);
+    
+    xmlpp::Document resultDoc();
+    xmlpp::Element *resultRoot = answerDoc.create_root_node("TextOutput");
+    resultRoot->add_child_text(query.body);
+    
+    std::ostringstream answerStream;
+    answerDoc.write_to_stream(answerStream);
+    
+    std::ostringstream resultStream;
+    resultDoc.write_to_stream(resultStream);
+    
+    XmlDiff xmlDiff(answerStream, resultStream);
+    return !xmlDiff.diff();
+}
+
+ErrorCheck::ErrorCheck() : IOutput(console), errorCode("")
+{
+}
+
+ErrorCheck::ErrorCheck(const std::string &_errorCode)
+    : IOutput(console), errorCode(_errorCode)
+{
+}
+
+bool ErrorCheck::check(sedna::Query &query)
+{
+    switch (query.resultCode) {
+        case SEDNA_QUERY_SUCCEEDED:
+        case SEDNA_UPDATE_SUCCEEDED:
+        case SEDNA_BULK_LOAD_SUCCEEDED:
+        {
+            //Correct execution
+            return false;
+        }
+        case SEDNA_QUERY_FAILED:
+        case SEDNA_UPDATE_FAILED:
+        case SEDNA_BULK_LOAD_FAILED:
+        case SEDNA_NEXT_ITEM_FAILED:
+        case SEDNA_ERROR:
+        {
+            if (errorCode.length() == 0) {
+                //Any error allowed
+                return true;
+            }
+            //Let's check the error
+            if (query.resultSequence.size() == 0) {
+                //No error presented
+                return false;
+            }
+
+            const string &error = query.resultSequence[0];
+
+            const std::string errorPrefix = "SEDNA Message: ERROR ";
+            const boost::regex errorFinder("^" + errorPrefix + "[[:alnum:]]*$");
+            boost::match_results<string::const_iterator> matched;
+
+            boost::regex_search(error.begin(), error.end(), matched, errorFinder);
+            if (matched.size() != 1) {
+                //Unexpected error message
+                return false;
+            }
+
+            string match = match[0].str();
+            match.erase(0, errorPrefix.length());
+
+            if (match == errorCode) {            
+                return true;
+            }
+            return false;
+        }
+        default:
+        {
+            std::cerr << "Unexpected execution status in error comparator!\n";
+            return false;
+        }
+    }
+    
+    if (query.resultCode > 0) {
+        //Query exited with error or it was bulk load or update (incorrect test case)
+        return false;
+    }
+}

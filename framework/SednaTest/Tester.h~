@@ -1,0 +1,40 @@
+#ifndef TESTSET_H
+#define TESTSET_H
+
+#include <string>
+#include <libxml++/libxml++.h>
+
+#include <vector>
+
+#include "folders/testgroup.h"
+#include "folders/testcase.h"
+#include "sedna/SednaInterface.h"
+
+class Tester {
+    std::string configFile, baseDir, sednaDir;
+     
+    SednaInterface sednaInstance;
+    
+    xmlpp::DomParser configParser;
+    xmlpp::Element *configRoot;
+
+    std::vector<TestGroup *> groups;
+    
+    void parseGroups();
+    void parseTests(xmlpp::Element *groupNode, TestGroup *testGroup);
+
+    void freeGroups();
+
+    std::string queryDir;
+    std::string answerDir;
+    std::string dataDir;
+    
+public:
+    Tester(const std::string &baseDir, const std::string &configFile, const std::string &sednaDir);
+    ~Tester();
+    
+    void executeAll(std::string dbName = "testdb");
+    void generateAllAnswers(std::string dbName = "testdb");
+};
+
+#endif /* TESTSET_H */

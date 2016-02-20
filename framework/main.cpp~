@@ -1,0 +1,105 @@
+#include <iostream>
+#include <string>
+
+#include "diff/xmldiff.h"
+#include "Tester/Tester.h"
+
+int main(int argc, char **argv)
+{
+    std::string baseDir(argv[1]);
+    std::string config("config.xml");
+    std::string seData(argv[2]);
+
+    Tester tester(baseDir, config, seData);
+    tester.runXQTS();
+
+    return 0;
+}
+
+// #include <iostream>
+// #include <cstring>
+// #include <string>
+// #include <glib.h>
+// #include <stdexcept>
+// 
+// #include <libsedna.h>
+// 
+// using namespace std;
+// 
+// const std::string url = "localhost:5050";
+// const std::string login = "SYSTEM";
+// const std::string password = "MANAGER";
+// 
+// const std::string CDB_EXECUTABLE = "se_cdb";
+// const std::string SM_EXECUTABLE = "se_sm";
+// const std::string SMSD_EXECUTABLE = "se_smsd";
+// const std::string DROP_EXECUTABLE = "se_ddb";
+// 
+// const std::string GOV_EXECUTABLE = "se_gov";
+// const std::string STOP_EXECUTABLE = "se_stop";
+// 
+// const std::string dbName = "se_stop";
+// 
+// //Static buffer for result retrieval
+// static char resultBuf[1000];
+// 
+// inline static
+// bool spawnProcess(std::string executableName) {
+//     int resultCode;
+//     
+//     GError *error;
+//     bool isOk = g_spawn_command_line_sync(executableName.c_str(), NULL, NULL, &resultCode, &error);
+//     
+//     if (!isOk) {
+//         throw std::runtime_error(error->message);
+//         return false;
+//     }
+//     return true;
+// }
+// 
+// int main(int argc, char **argv) {
+//     std::string sednaBin(argv[1]);
+//     
+//     std::cout << "\nStarting governor\n";
+//     spawnProcess(sednaBin + GOV_EXECUTABLE);
+//     
+//     std::cout << "\nCreating database " << dbName << "\n";
+//     spawnProcess(sednaBin + CDB_EXECUTABLE + " " + dbName);
+//     
+//     std::cout << "\nStarting database " << dbName << "\n";
+//     spawnProcess(sednaBin + SM_EXECUTABLE + " " + dbName);
+//     
+//     SednaConnection *conn = new SednaConnection;
+//     std::cout << "\nCreating session for database " << dbName << "\n";
+//     int resultCode = SEconnect(conn, url.c_str(), dbName.c_str(), login.c_str(), password.c_str());
+//     cout << conn->session_directory << "\n";
+//     
+//     if (resultCode != SEDNA_SESSION_OPEN) {
+//         throw std::runtime_error("Cannot open session");
+//     }
+//     std::cout << "\nSession created succesfully\n";
+//     
+//     //Setting autocommit mode, although it should be set automatically
+//     int value = SEDNA_AUTOCOMMIT_ON;
+//     resultCode = SEsetConnectionAttr(conn, SEDNA_ATTR_AUTOCOMMIT, &value, sizeof(int));
+//     if (resultCode != SEDNA_SET_ATTRIBUTE_SUCCEEDED) {
+//         throw std::runtime_error("Cannot set autocommit");
+//     }
+//     
+//     string query = "LOAD \"a.xml\" \"test\"";
+//     
+//     std::cout << "\nExecuting query:\n-------------------\n " << query << "\n" << query.size()<< "\n-------------------\n";
+//     resultCode = SEexecute(conn, query.c_str());
+//     
+//     switch (resultCode) {
+//         case SEDNA_BULK_LOAD_SUCCEEDED:
+//             std::cout << "Document loaded!\n";
+//             break;
+//     }
+//     
+//     if (resultCode < 0) {
+//         std::cout << std::string(SEgetLastErrorMsg(conn));
+//     }
+//     
+//     return 0;
+// }

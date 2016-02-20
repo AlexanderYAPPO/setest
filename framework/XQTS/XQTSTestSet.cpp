@@ -1,0 +1,83 @@
+#include <string>
+#include <stdexcept>
+#include <sedna/SednaInterface.h>
+#include <iostream>
+
+#include "XQTSTestSet.h"
+
+using std::string;
+using sedna::Transaction;
+using sedna::Query;
+
+#include "XQTSCatalogParser.h"
+
+const static string blQueryPattern = "LOAD \"%s\" \"%s\"";
+const static int maxQueryLength = 500;
+
+XQTSTestSet::XQTSTestSet(const std::string& _baseDir)
+    : baseDir(_baseDir)
+{
+    XQTSCatalogParser catalogParser(baseDir);
+    testCases = catalogParser.parseTestCases();
+    sources = catalogParser.parseSources();
+    currentCaseId = -1;
+}
+
+void XQTSTestSet::initTestSet(sedna::Session* session)
+{
+    doBulkloads(session);
+    std::cout << "Bulkloads succeeded!\n";
+    currentCaseId = 0;
+}
+
+ISednaTestCase *XQTSTestSet::nextCase()
+{
+    if (currentCaseId == -1 || currentCaseId == testCases.size()) {
+        return 0;
+    }
+    return testCases[currentCaseId++];
+}
+
+void XQTSTestSet::doBulkloads(sedna::Session* session) {
+    //Bulkloads
+    Transaction tr(session);
+    
+    char queryBuf[maxQueryLength] = {0,};
+    for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
+        //FIXME This is invalid document, it should be checked manually
+        if (sources[sourceId].first == "BCIsInvalid") {
+            continue;
+        }
+        if (sources[sourceId].first == "InvalidUmlaut") {
+            continue;
+        }
+        if (sources[sourceId].first == "badxml") {
+            continue;
+        }
+        sprintf(queryBuf, blQueryPattern.c_str(), sources[sourceId].second.c_str(), sources[sourceId].first.c_str());
+        Query query = Query(Query::Body(queryBuf));
+        tr.execute(query);
+
+        switch (query.resultCode) {
+            case SEDNA_BULK_LOAD_SUCCEEDED:
+                std::cout << "Document " << sources[sourceId].first << " loaded!\n";
+                break;
+            default:
+                throw std::runtime_error(query.resultString);
+        }
+    }
+}
+
+void XQTSTestSet::freeTestCases()
+{
+    for (unsigned int i = 0; i < testCases.size(); i++) {
+        delete testCases[i];
+    }
+    testCases.clear();
+    currentCaseId = -1;
+}
+
+XQTSTestSet::~XQTSTestSet()
+{
+    freeTestCases();
+}

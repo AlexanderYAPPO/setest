@@ -1,0 +1,4 @@
+*
+!.gitignore
+!import.py
+!CMakeLists.txt

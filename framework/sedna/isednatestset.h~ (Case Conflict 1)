@@ -1,0 +1,40 @@
+/*
+    Copyright 2012 Ilya Taranov <ilya@taranoff.net>
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+
+#ifndef ISEDNATESTGROUP_H
+#define ISEDNATESTGROUP_H
+
+#include "SednaInterface.h"
+
+class ISednaTestCase;
+
+class ISednaTestSet
+{
+public:
+    virtual ~ISednaTestSet() {};
+
+    virtual void initTestSet(sedna::Session *session) = 0;
+
+    /**
+     * @returns NULL when no more tests available, or enumeration
+     *   is not initialized by initTestSet
+     */
+    virtual ISednaTestCase *next() = 0;
+
+    virtual void generateReport() = 0;
+};
+
+#endif // ISEDNATESTGROUP_H

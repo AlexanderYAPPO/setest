@@ -1,0 +1,128 @@
+/*
+    Copyright 2012 Ilya Taranov <ilya@taranoff.net>
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+
+
+#ifndef XQTSABSTRACTS_H
+#define XQTSABSTRACTS_H
+
+#include "sedna/isednatestset.h"
+
+#include <list>
+#include <string>
+
+/**********************************************
+ * Inputs
+ **********************************************/
+
+class IXQTSInput
+{
+public:
+  
+    enum input_roles_t
+    {
+        principal, supplemental
+    };
+    
+protected:
+  
+    input_roles_t role;
+    
+public:
+  
+    virtual ~IXQTSInput() {};
+    IXQTSInput(input_roles_t _role) : role(_role) {};
+
+    /** @brief Applies input data to a query
+     */
+    virtual void apply(sedna::Query &query) = 0;
+};
+
+class FileSource : public IXQTSInput
+{
+    std::string fileName;
+    std::string variableName;
+    
+public:
+    FileSource(const std::string &_fileName, const std::string &_variableName);
+    void apply(sedna::Query &query);
+};
+
+/**********************************************
+ * Outputs
+ **********************************************/
+
+class IOutput
+{
+public:
+    enum output_roles_t
+    {
+        principal, console
+    };
+protected:
+    output_roles_t role;
+public:
+    virtual ~IOutput() {};
+
+    IOutput(output_roles_t _role) : role(_role) {};
+
+    /** @brief Compares query result
+     * @return 0 if compares as equal
+     */
+    virtual bool check(sedna::Query &query) = 0;
+};
+
+/**
+ * The XML InfoSets should be canonicalized and compared.
+ */
+class XmlOutput : public IOutput
+{
+    std::string fileName;
+    
+public:
+    XmlOutput(const std::string &_fileName);
+    
+    bool check(sedna::Query &query);
+};
+
+/**
+ * Each line of non-whitespace text should match.
+ * New-line sequences may vary and should be neutralized.
+ * Due to issues with the XML serialization of certain characters (e.g. '<'),
+ * it is not possible to simply compare the actual and expected results.
+ * Rather (as is the case with the 'Fragment' comparator) the test harness should
+ * convert the results into valid XML (by adding a container element) and
+ * perform comparison on the XML canonicalized versions of the results.
+ */
+class TextOutput : public IOutput
+{
+    std::string fileName;
+public:
+    explicit TextOutput(const std::string &_fileName);
+
+    bool check(sedna::Query &query);
+};
+
+class ErrorCheck : public IOutput
+{
+    std::string errorCode;
+public:
+    explicit ErrorCheck();
+    explicit ErrorCheck(const std::string &errorCode);
+    
+    bool check(sedna::Query &query);
+};
+
+#endif // XQTSABSTRACTS_H
